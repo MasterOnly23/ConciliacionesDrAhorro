@@ -2,5 +2,4 @@ venv/
 __pycache__/
 migrations/
 .env
-*.xlsx
-*.xls
+Archivos\ a\ Conciliar/

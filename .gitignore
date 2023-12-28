@@ -2,5 +2,5 @@ venv/
 __pycache__/
 migrations/
 .env
-.xlsx
-.xls
+*.xlsx
+*.xls

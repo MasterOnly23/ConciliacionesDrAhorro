@@ -16,7 +16,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from conciliaciones.views import UploadExcelView
 
 urlpatterns = [
-    
+    path('upload/', UploadExcelView.as_view(), name='upload_excel'),
 ]

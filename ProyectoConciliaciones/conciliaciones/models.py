@@ -5,7 +5,7 @@ from django.db import models
 
 class Extractos(models.Model):
     id = models.AutoField(primary_key=True)
-    fecha = models.DateField()
+    fecha = models.DateField(null=True, blank=True)
     descripcion = models.CharField(max_length=100)
     monto = models.DecimalField(max_digits=10, decimal_places=2)
     comprobante = models.CharField(max_length=50)
@@ -24,9 +24,9 @@ class Extractos(models.Model):
 
 class Mayor(models.Model):
     id = models.AutoField(primary_key=True)
-    fecha = models.DateField()
+    fecha = models.DateField(null=True, blank=True)
     descripcion = models.CharField(max_length=100)
-    monto = models.DecimalField(max_digits=10, decimal_places=2)
+    monto = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     codigo = models.CharField(max_length=50)
     observaciones = models.CharField(max_length=100, null=True, blank=True)
     fecha_creacion = models.DateField(auto_now_add=True)

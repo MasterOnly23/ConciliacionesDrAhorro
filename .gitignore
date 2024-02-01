@@ -3,4 +3,4 @@ __pycache__/
 migrations/
 .env
 Archivos\ a\ Conciliar/
-/logs/
+**/logs/

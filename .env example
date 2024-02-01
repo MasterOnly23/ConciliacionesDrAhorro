@@ -1,0 +1,22 @@
+SECRET_KEY='django-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+
+#Debug
+DEBUG=True
+
+#DB
+PASS_DB=password
+USER_DB=user
+HOST_DB=host
+NAME_DB=nameDB
+PORT_DB=port
+
+
+#Email
+EMAIL_HOST_USER=
+EMAIL_HOST_PASSWORD=
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=port
+EMAIL_USE_TLS=True
+
+#Logs
+LOGS_PATH = 'path'

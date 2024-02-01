@@ -935,3 +935,4 @@
 2024-01-31 13:10:32,320 - conciliaciones.views - ERROR - 'int' object has no attribute 'mayor_id'
 2024-01-31 13:11:33,283 - conciliaciones.views - ERROR - Unsupported lookup 'not_in' for AutoField or join on the field not permitted.
 2024-01-31 13:42:29,070 - conciliaciones.views - ERROR - 'ConciliacionesView' object has no attribute 'file_header'
+

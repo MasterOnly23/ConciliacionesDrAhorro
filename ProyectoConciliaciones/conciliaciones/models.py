@@ -63,6 +63,7 @@ class Mayor(models.Model):
 class Conciliacion(models.Model):
     extracto = models.ForeignKey(Extractos, on_delete=models.CASCADE)
     mayor = models.ForeignKey(Mayor, on_delete=models.CASCADE)
+    file_header = models.ForeignKey(FileHeaders, on_delete=models.CASCADE, related_name='Conciliacion', null=True)
     fecha = models.DateField(null=True, blank=True)
     fecha_conciliacion = models.DateField(auto_now_add=True)
 
@@ -74,6 +75,7 @@ class Conciliacion(models.Model):
 
 
 class NoConciliado(models.Model):
+    file_header = models.ForeignKey(FileHeaders, on_delete=models.CASCADE, related_name='NoConciliado', null=True)
     extracto_fecha = models.DateField(null=True, blank=True)
     extracto_descripcion = models.CharField(max_length=255)
     extracto_monto = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)

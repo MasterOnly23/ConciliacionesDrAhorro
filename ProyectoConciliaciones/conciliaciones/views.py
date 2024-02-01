@@ -9,7 +9,7 @@ from django.views.decorators.http import require_POST
 from django.utils.decorators import method_decorator
 import pandas as pd
 from django.core.exceptions import ValidationError
-from conciliaciones.models import Extractos, Mayor, Conciliacion, NoConciliado
+from conciliaciones.models import FileHeaders, Extractos, Mayor, Conciliacion, NoConciliado
 from datetime import datetime
 import numpy as np
 import logging
@@ -31,6 +31,7 @@ class ConciliacionesView(View):
 
     def post(self, request):
         self.excel_file = request.FILES["file"]
+        file_name = self.excel_file.name
 
         # Verifica la extensión del archivo
         if not self.excel_file.name.endswith(
@@ -46,21 +47,27 @@ class ConciliacionesView(View):
                 {"error": "File is too large. Maximum file size is 5MB."}
             )
 
-        data_extractos = pd.read_excel(self.excel_file, sheet_name="EXTRACTO")
-        data_mayor = pd.read_excel(self.excel_file, sheet_name="MAYOR")
+        data_extractos = pd.read_excel(self.excel_file, sheet_name="EXTRACTO", header=None)
+        data_mayor = pd.read_excel(self.excel_file, sheet_name="MAYOR", header=None)
 
         self.bank_name = data_extractos.iat[0, 0]  # Accede a la celda A1
         self.period = data_extractos.iat[0, 1]
+    
 
         try:
-            self.create_extractos(data_extractos)
-            self.create_mayor(data_mayor)
+            file_header = FileHeaders.objects.create(
+                name = file_name,
+                periodo = self.period,
+            )
+            self.create_extractos(data_extractos, file_header)
+            self.create_mayor(data_mayor, file_header)
             return JsonResponse({"message": "Excel file has been processed."})
         except Exception as e:
             return JsonResponse({"error": str(e)})
 
-    def create_extractos(self, data_extractos):
+    def create_extractos(self, data_extractos, file_header):
         data_table_estractos = data_extractos.iloc[4:, :5]  # leemos la tabla
+        extractos_data = []
         for index, row in data_table_estractos.iterrows():
             try:
                 if isinstance(row[0], datetime):
@@ -69,18 +76,21 @@ class ConciliacionesView(View):
                     fecha = datetime.strptime(row[0], "%d/%m/%Y").strftime("%Y-%m-%d")
                 else:
                     fecha = None
-                Extractos.objects.create(
+                extractos_data.append(Extractos(
+                    file_header=file_header,
                     fecha=fecha,
                     descripcion=row[1],
                     comprobante=row[2],
                     monto=row[3],
                     codigo=row[4],
-                )
+                ))
             except Exception as e:
                 logger.error(str(e))
+        Extractos.objects.bulk_create(extractos_data)
 
-    def create_mayor(self, data_mayor):
+    def create_mayor(self, data_mayor, file_header):
         data_table_mayor = data_mayor.iloc[4:, :4]
+        mayor_data = []
         for index, row in data_table_mayor.iterrows():
             try:
                 if isinstance(row[0], datetime):
@@ -89,57 +99,74 @@ class ConciliacionesView(View):
                     fecha = datetime.strptime(row[0], "%d/%m/%Y").strftime("%Y-%m-%d")
                 else:
                     fecha = None
-                Mayor.objects.create(
+                mayor_data.append(Mayor(
+                    file_header=file_header,
                     fecha=fecha,
                     descripcion=row[1],
                     monto=row[2] if not np.isnan(row[2]) else None,
                     codigo=row[3],
-                )
+                ))
             except Exception as e:
                 logger.error(str(e))
+        Mayor.objects.bulk_create(mayor_data)
 
     def conciliacion(self):
         try:
-            # Use iterators en lugar de obtener todas las instancias de Extractos y Mayor en memoria
-            extractos = Extractos.objects.all().iterator()
-            mayor = Mayor.objects.all().iterator()
-
-            # Use un diccionario como conjunto de hash para almacenar los objetos Mayor y buscarlos más rápidamente
-            mayor_dict = {(m.fecha, m.codigo): m for m in mayor}
+            extractos = Extractos.objects.all()
+            mayor = Mayor.objects.all()
             no_conciliados = []
+            file_header = FileHeaders.objects.all().last()
 
-            # Iterate sobre los extractos y busque en el diccionario de mayores en lugar de iterar sobre todos los mayores en cada iteración
-            for e in extractos:
-                if (e.fecha, e.codigo) in mayor_dict:
-                    Conciliacion.objects.create(
-                        extracto=e, mayor=mayor_dict[(e.fecha, e.codigo)]
-                    )
-                else:
-                    extracto_no_conciliado = NoConciliado.objects.create(
-                        extracto_fecha=e.fecha,
-                        extracto_descripcion=e.descripcion,
-                        extracto_monto=e.monto,
-                    )
-                    no_conciliados.append(extracto_no_conciliado)
+            try:
+                for e in extractos:
+                    conciliado = False
+                    for m in mayor:
+                        if e.fecha == m.fecha and e.codigo == m.codigo and e.monto == m.monto:
+                            Conciliacion.objects.create(
+                                file_header=file_header,
+                                extracto=e,
+                                mayor=m,
+                            )
+                            conciliado = True
+                            break
+                    if not conciliado:
+                        no_conciliado = NoConciliado.objects.create(
+                            file_header=file_header,
+                            extracto_fecha=e.fecha,
+                            extracto_descripcion=e.descripcion,
+                            extracto_monto=e.monto,
+                        )
+                        no_conciliados.append(no_conciliado)
+            except ValidationError as e:
+                print(e)
+                logger.error(str(e))
+                return JsonResponse({"error": str(e)})
 
-            # Iterate sobre los mayores que no se conciliaron y cree un objeto NoConciliado para ellos
-            for m in Mayor.objects.filter(
-                id__not_in=[
-                    conciliacion.mayor_id for conciliacion in Conciliacion.objects.all()
-                ]
-            ):
-                try:
-                    NoConciliado.objects.create(
-                        mayor_fecha=m.fecha,
-                        mayor_descripcion=m.descripcion,
-                        mayor_monto=m.monto,
-                    )
-                except ValidationError as e:
-                    print(e)
-                    logger.error(str(e))
-                    return JsonResponse({"error": str(e)})
+            try:
+                for m in mayor:
+                    conciliado = False
+                    for e in extractos:
+                        if m.fecha == e.fecha and m.codigo == e.codigo and m.monto == e.monto:
+                            Conciliacion.objects.create(
+                                file_header=file_header,
+                                extracto=e,
+                                mayor=m,
+                            )
+                            conciliado = True
+                            break
+                    if not conciliado:
+                        no_conciliado = NoConciliado.objects.create(
+                            file_header=file_header,
+                            mayor_fecha=m.fecha,
+                            mayor_descripcion=m.descripcion,
+                            mayor_monto=m.monto,
+                        )
+                        no_conciliados.append(no_conciliado)
+            except ValidationError as e:
+                print(e)
+                logger.error(str(e))
+                return JsonResponse({"error": str(e)})
 
-            # Use JsonResponse en lugar de crear una lista de diccionarios y pasarlo a un objeto JsonResponse
             return JsonResponse(
                 {
                     "message": "Excel file has been processed.",
@@ -149,18 +176,13 @@ class ConciliacionesView(View):
                                 "fecha": nc.extracto_fecha,
                                 "descripcion": nc.extracto_descripcion,
                                 "monto": nc.extracto_monto,
-                            }
-                            if nc.extracto_fecha is not None
-                            else None,
+                            }if nc.extracto_fecha is not None else None,
                             "mayor": {
                                 "fecha": nc.mayor_fecha,
                                 "descripcion": nc.mayor_descripcion,
                                 "monto": nc.mayor_monto,
-                            }
-                            if nc.mayor_fecha is not None
-                            else None,
-                        }
-                        for nc in no_conciliados
+                            }if nc.mayor_fecha is not None else None,
+                        } for nc in no_conciliados
                     ],
                 }
             )
@@ -169,6 +191,7 @@ class ConciliacionesView(View):
             print(e)
             logger.error(str(e))
             return JsonResponse({"error": str(e)})
+
 
     def get(self, request, *args, **kwargs):
         return self.conciliacion()

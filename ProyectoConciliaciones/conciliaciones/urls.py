@@ -16,10 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from conciliaciones.views import ConciliacionesView
+from conciliaciones.views import ConciliacionesView, DownloadPlantilla
 
 urlpatterns = [
     path('upload/', ConciliacionesView.as_view(), name='upload_excel'),
     path('conciliacion/' , ConciliacionesView.as_view(), name='conciliacion'),
+    path('download/', DownloadPlantilla, name='download'),
 
 ]

@@ -5,6 +5,7 @@ import re
 class FileHeaders(models.Model):
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=50)
+    bank_name = models.CharField(max_length=50)
     periodo = models.CharField(max_length=7)  # Año y mes en formato 'YYYY/MM'
     date_created = models.DateField(auto_now_add=True)
     is_deleted = models.BooleanField(default=False)

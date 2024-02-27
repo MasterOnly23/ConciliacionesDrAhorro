@@ -40,11 +40,15 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    #cors
+    'corsheaders',
+
     #apps
     'conciliaciones.apps.ConciliacionesConfig',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -74,6 +78,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'ProyectoConciliaciones.wsgi.application'
 
+
+#CORS
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+]
+# CORS_ALLOW_CREDENTIALS = True
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases

@@ -25,6 +25,7 @@ import logging
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.utils import timezone
+from django.core import serializers
 
 
 from openpyxl.styles import Font, Border, Alignment, PatternFill
@@ -50,6 +51,7 @@ class ConciliacionesView(View):
     def post(self, request):
         self.excel_file = request.FILES["file"]
         file_name = self.excel_file.name
+        print(file_name)
 
         # Verifica la extensión del archivo
         if not self.excel_file.name.endswith(
@@ -84,9 +86,10 @@ class ConciliacionesView(View):
                 bank_name=self.bank_name,
                 periodo=self.period,
             )
+            print(file_header.id)
             self.create_extractos(data_extractos, file_header)
             self.create_mayor(data_mayor, file_header)
-            self.conciliacion(self.bank_name)
+            self.conciliacion(self.bank_name, file_header)
             return JsonResponse(
                 {
                     "message": "Excel file has been processed.",
@@ -146,12 +149,12 @@ class ConciliacionesView(View):
                 logger.error(str(e))
         Mayor.objects.bulk_create(mayor_data)
 
-    def conciliacion(self, bank_name):
+    def conciliacion(self, bank_name, file_header):
         try:
-            extractos = Extractos.objects.all()
-            mayor = Mayor.objects.all()
+            extractos = Extractos.objects.filter(file_header=file_header)
+            mayor = Mayor.objects.filter(file_header=file_header)
             no_conciliados = []
-            file_header = FileHeaders.objects.all().last()
+            # file_header = FileHeaders.objects.filter(bank_name=bank_name, periodo=self.period).last()
 
             try:
                 for e in extractos:
@@ -239,83 +242,99 @@ class ConciliacionesView(View):
     def get(self, request, *args, **kwargs):
         bankName = request.GET.get("bankName")
         period = request.GET.get("period")
+        action = request.GET.get("action")
         if bankName and period:
-            try:
-                file_header = FileHeaders.objects.get(
-                    bank_name=bankName, periodo=period
-                )
-                extractos = Extractos.objects.filter(file_header=file_header)
-                mayores = Mayor.objects.filter(file_header=file_header)
-                conciliaciones = Conciliacion.objects.filter(file_header=file_header)
-                no_conciliados = NoConciliado.objects.filter(file_header=file_header)
-                return JsonResponse(
-                    {
-                            "extractos": [
-                                {
-                                    "fecha": e.fecha,
-                                    "descripcion": e.descripcion,
-                                    "comprobante": e.comprobante,
-                                    "monto": e.monto,
-                                    "codigo": e.codigo,
-                                }
-                                for e in extractos
-                            ],
-                            "mayores": [
-                                {
-                                    "fecha": m.fecha,
-                                    "descripcion": m.descripcion,
-                                    "monto": m.monto,
-                                    "codigo": m.codigo,
-                                }
-                                for m in mayores
-                            ],
-                            "conciliaciones": [
-                                {
-                                    "extracto": {
-                                        "fecha": c.extracto.fecha,
-                                        "descripcion": c.extracto.descripcion,
-                                        "comprobante": c.extracto.comprobante,
-                                        "monto": c.extracto.monto,
-                                        "codigo": c.extracto.codigo,
-                                    },
-                                    "mayor": {
-                                        "fecha": c.mayor.fecha,
-                                        "descripcion": c.mayor.descripcion,
-                                        "monto": c.mayor.monto,
-                                        "codigo": c.mayor.codigo,
-                                    },
-                                }
-                                for c in conciliaciones
-                            ],
-                            "no_conciliados": [
-                                {
-                                    "extracto": (
-                                        {
-                                            "fecha": nc.extracto_fecha,
-                                            "descripcion": nc.extracto_descripcion,
-                                            "monto": nc.extracto_monto,
-                                        }
-                                        if nc.extracto_fecha is not None
-                                        else None
-                                    ),
-                                    "mayor": (
-                                        {
-                                            "fecha": nc.mayor_fecha,
-                                            "descripcion": nc.mayor_descripcion,
-                                            "monto": nc.mayor_monto,
-                                        }
-                                        if nc.mayor_fecha is not None
-                                        else None
-                                    ),
-                                }
-                                for nc in no_conciliados
-                            ],
-                    }
-                )
-            except FileHeaders.DoesNotExist:
-                return JsonResponse(
-                    {"error": "No file found for the given bank and period."}
-                )
+            if action == 'diferencias':
+                try:
+                    file_header = FileHeaders.objects.filter(bank_name=bankName, periodo=period).last()
+                    print(file_header.id)
+                    extractos = Extractos.objects.filter(file_header=file_header.id)
+                    mayores = Mayor.objects.filter(file_header=file_header.id)
+                    conciliaciones = Conciliacion.objects.filter(file_header=file_header.id)
+                    no_conciliados = NoConciliado.objects.filter(file_header=file_header.id)
+                    return JsonResponse(
+                        {
+                                "extractos": [
+                                    {
+                                        "fecha": e.fecha,
+                                        "descripcion": e.descripcion,
+                                        "comprobante": e.comprobante,
+                                        "monto": e.monto,
+                                        "codigo": e.codigo,
+                                    }
+                                    for e in extractos
+                                ],
+                                "mayores": [
+                                    {
+                                        "fecha": m.fecha,
+                                        "descripcion": m.descripcion,
+                                        "monto": m.monto,
+                                        "codigo": m.codigo,
+                                    }
+                                    for m in mayores
+                                ],
+                                "conciliaciones": [
+                                    {
+                                        "extracto": {
+                                            "fecha": c.extracto.fecha,
+                                            "descripcion": c.extracto.descripcion,
+                                            "comprobante": c.extracto.comprobante,
+                                            "monto": c.extracto.monto,
+                                            "codigo": c.extracto.codigo,
+                                        },
+                                        "mayor": {
+                                            "fecha": c.mayor.fecha,
+                                            "descripcion": c.mayor.descripcion,
+                                            "monto": c.mayor.monto,
+                                            "codigo": c.mayor.codigo,
+                                        },
+                                    }
+                                    for c in conciliaciones
+                                ],
+                                "no_conciliados": [
+                                    {
+                                        "extracto": (
+                                            {
+                                                "fecha": nc.extracto_fecha,
+                                                "descripcion": nc.extracto_descripcion,
+                                                "monto": nc.extracto_monto,
+                                            }
+                                            if nc.extracto_fecha is not None
+                                            else None
+                                        ),
+                                        "mayor": (
+                                            {
+                                                "fecha": nc.mayor_fecha,
+                                                "descripcion": nc.mayor_descripcion,
+                                                "monto": nc.mayor_monto,
+                                            }
+                                            if nc.mayor_fecha is not None
+                                            else None
+                                        ),
+                                    }
+                                    for nc in no_conciliados
+                                ],
+                        }
+                    )
+                except FileHeaders.DoesNotExist:
+                    return JsonResponse(
+                        {"error": "No file found for the given bank and period."}
+                    )
+            elif action == 'historial':
+                file_header = FileHeaders.objects.filter(bank_name=bankName, periodo=period)
+                file_headers = FileHeaders.objects.filter(bank_name=bankName, periodo=period)
+                response_data = []
+                for file_header in file_headers:
+                    no_conciliados = NoConciliado.objects.filter(file_header=file_header.id)
+                    no_conciliados_json = serializers.serialize('json', no_conciliados)
+                    response_data.append({
+                        'file_header': serializers.serialize('json', [file_header]),
+                        'no_conciliados': no_conciliados_json
+                    })
+                return JsonResponse(response_data, safe=False)
+
+            else:
+                return JsonResponse({"error": "Invalid action."})
 
 
 def DownloadPlantilla(request):

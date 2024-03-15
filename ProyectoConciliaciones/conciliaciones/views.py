@@ -26,8 +26,9 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.utils import timezone
 from django.core import serializers
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
-
+from decouple import config
 from openpyxl.styles import Font, Border, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 
@@ -58,7 +59,7 @@ class ConciliacionesView(View):
             ".xls"
         ) and not self.excel_file.name.endswith(".xlsx"):
             return JsonResponse(
-                {"error": "Invalid file type. Only .xls and .xlsx are accepted."}
+                {"error": "Invalid file type. Only .xls and .xlsx are accepted."}, status=400
             )
 
         # Verifica el tamaño del archivo (5MB en este ejemplo)
@@ -66,6 +67,9 @@ class ConciliacionesView(View):
             return JsonResponse(
                 {"error": "File is too large. Maximum file size is 5MB."}
             )
+        if not file_name.lower().startswith(config('FILE_NAME_PREFIX')):
+            return JsonResponse({"error": "Nombre de archivo no Valido."}, status=400)
+
 
         newFileName = timezone.now().strftime("%Y-%m-%d") + "-" + file_name
         path = default_storage.save(
@@ -243,8 +247,10 @@ class ConciliacionesView(View):
         bankName = request.GET.get("bankName")
         period = request.GET.get("period")
         action = request.GET.get("action")
-        if bankName and period:
-            if action == 'diferencias':
+        monto = request.GET.get("monto")
+        limit = request.GET.get("limit", 10)
+        if action == 'diferencias':
+            if bankName and period:
                 try:
                     file_header = FileHeaders.objects.filter(bank_name=bankName, periodo=period).last()
                     print(file_header.id)
@@ -320,21 +326,36 @@ class ConciliacionesView(View):
                     return JsonResponse(
                         {"error": "No file found for the given bank and period."}
                     )
-            elif action == 'historial':
-                file_header = FileHeaders.objects.filter(bank_name=bankName, periodo=period)
-                file_headers = FileHeaders.objects.filter(bank_name=bankName, periodo=period)
-                response_data = []
-                for file_header in file_headers:
-                    no_conciliados = NoConciliado.objects.filter(file_header=file_header.id)
-                    no_conciliados_json = serializers.serialize('json', no_conciliados)
-                    response_data.append({
-                        'file_header': serializers.serialize('json', [file_header]),
-                        'no_conciliados': no_conciliados_json
-                    })
-                return JsonResponse(response_data, safe=False)
-
+        elif action == 'historial':
+            filter_args = {}
+            if bankName:
+                filter_args['bank_name'] = bankName
+            if period:
+                filter_args['periodo'] = period
+            if monto:
+                filter_args['monto'] = monto
+            if filter_args:
+                file_headers = FileHeaders.objects.filter(**filter_args)
             else:
-                return JsonResponse({"error": "Invalid action."})
+                file_headers = FileHeaders.objects.all()
+            
+            
+
+            if limit:
+                file_headers = file_headers[:int(limit)]
+
+            response_data = []
+            for file_header in file_headers:
+                no_conciliados = NoConciliado.objects.filter(file_header=file_header.id)
+                no_conciliados_json = serializers.serialize('json', no_conciliados)
+                response_data.append({
+                    'file_header': serializers.serialize('json', [file_header]),
+                    'no_conciliados': no_conciliados_json
+                })
+            return JsonResponse(response_data, safe=False)
+
+        else:
+            return JsonResponse({"error": "Invalid action."})
 
 
 def DownloadPlantilla(request):

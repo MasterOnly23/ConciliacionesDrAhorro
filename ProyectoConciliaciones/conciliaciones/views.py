@@ -59,7 +59,8 @@ class ConciliacionesView(View):
             ".xls"
         ) and not self.excel_file.name.endswith(".xlsx"):
             return JsonResponse(
-                {"error": "Invalid file type. Only .xls and .xlsx are accepted."}, status=400
+                {"error": "Invalid file type. Only .xls and .xlsx are accepted."},
+                status=400,
             )
 
         # Verifica el tamaño del archivo (5MB en este ejemplo)
@@ -67,9 +68,8 @@ class ConciliacionesView(View):
             return JsonResponse(
                 {"error": "File is too large. Maximum file size is 5MB."}
             )
-        if not file_name.lower().startswith(config('FILE_NAME_PREFIX')):
+        if not file_name.lower().startswith(config("FILE_NAME_PREFIX")):
             return JsonResponse({"error": "Nombre de archivo no Valido."}, status=400)
-
 
         newFileName = timezone.now().strftime("%Y-%m-%d") + "-" + file_name
         path = default_storage.save(
@@ -99,6 +99,7 @@ class ConciliacionesView(View):
                     "message": "Excel file has been processed.",
                     "bank_name": self.bank_name,
                     "periodo": self.period,
+                    "file_header_id" : file_header.id
                 }
             )
         except Exception as e:
@@ -249,110 +250,178 @@ class ConciliacionesView(View):
         action = request.GET.get("action")
         monto = request.GET.get("monto")
         limit = request.GET.get("limit", 10)
-        if action == 'diferencias':
+        file_header_id = request.GET.get("fileId")
+        if action == "diferencias":
             if bankName and period:
                 try:
-                    file_header = FileHeaders.objects.filter(bank_name=bankName, periodo=period).last()
+                    file_header = FileHeaders.objects.filter(
+                        bank_name=bankName, periodo=period
+                    ).last()
                     print(file_header.id)
                     extractos = Extractos.objects.filter(file_header=file_header.id)
                     mayores = Mayor.objects.filter(file_header=file_header.id)
-                    conciliaciones = Conciliacion.objects.filter(file_header=file_header.id)
-                    no_conciliados = NoConciliado.objects.filter(file_header=file_header.id)
+                    conciliaciones = Conciliacion.objects.filter(
+                        file_header=file_header.id
+                    )
+                    no_conciliados = NoConciliado.objects.filter(
+                        file_header=file_header.id
+                    )
                     return JsonResponse(
                         {
-                                "extractos": [
-                                    {
-                                        "fecha": e.fecha,
-                                        "descripcion": e.descripcion,
-                                        "comprobante": e.comprobante,
-                                        "monto": e.monto,
-                                        "codigo": e.codigo,
-                                    }
-                                    for e in extractos
-                                ],
-                                "mayores": [
-                                    {
-                                        "fecha": m.fecha,
-                                        "descripcion": m.descripcion,
-                                        "monto": m.monto,
-                                        "codigo": m.codigo,
-                                    }
-                                    for m in mayores
-                                ],
-                                "conciliaciones": [
-                                    {
-                                        "extracto": {
-                                            "fecha": c.extracto.fecha,
-                                            "descripcion": c.extracto.descripcion,
-                                            "comprobante": c.extracto.comprobante,
-                                            "monto": c.extracto.monto,
-                                            "codigo": c.extracto.codigo,
-                                        },
-                                        "mayor": {
-                                            "fecha": c.mayor.fecha,
-                                            "descripcion": c.mayor.descripcion,
-                                            "monto": c.mayor.monto,
-                                            "codigo": c.mayor.codigo,
-                                        },
-                                    }
-                                    for c in conciliaciones
-                                ],
-                                "no_conciliados": [
-                                    {
-                                        "extracto": (
-                                            {
-                                                "fecha": nc.extracto_fecha,
-                                                "descripcion": nc.extracto_descripcion,
-                                                "monto": nc.extracto_monto,
-                                            }
-                                            if nc.extracto_fecha is not None
-                                            else None
-                                        ),
-                                        "mayor": (
-                                            {
-                                                "fecha": nc.mayor_fecha,
-                                                "descripcion": nc.mayor_descripcion,
-                                                "monto": nc.mayor_monto,
-                                            }
-                                            if nc.mayor_fecha is not None
-                                            else None
-                                        ),
-                                    }
-                                    for nc in no_conciliados
-                                ],
+                            "extractos": [
+                                {
+                                    "fecha": e.fecha,
+                                    "descripcion": e.descripcion,
+                                    "comprobante": e.comprobante,
+                                    "monto": e.monto,
+                                    "codigo": e.codigo,
+                                }
+                                for e in extractos
+                            ],
+                            "mayores": [
+                                {
+                                    "fecha": m.fecha,
+                                    "descripcion": m.descripcion,
+                                    "monto": m.monto,
+                                    "codigo": m.codigo,
+                                }
+                                for m in mayores
+                            ],
+                            "conciliaciones": [
+                                {
+                                    "extracto": {
+                                        "fecha": c.extracto.fecha,
+                                        "descripcion": c.extracto.descripcion,
+                                        "comprobante": c.extracto.comprobante,
+                                        "monto": c.extracto.monto,
+                                        "codigo": c.extracto.codigo,
+                                    },
+                                    "mayor": {
+                                        "fecha": c.mayor.fecha,
+                                        "descripcion": c.mayor.descripcion,
+                                        "monto": c.mayor.monto,
+                                        "codigo": c.mayor.codigo,
+                                    },
+                                }
+                                for c in conciliaciones
+                            ],
+                            "no_conciliados": [
+                                {
+                                    "extracto": (
+                                        {
+                                            "fecha": nc.extracto_fecha,
+                                            "descripcion": nc.extracto_descripcion,
+                                            "monto": nc.extracto_monto,
+                                        }
+                                        if nc.extracto_fecha is not None
+                                        else None
+                                    ),
+                                    "mayor": (
+                                        {
+                                            "fecha": nc.mayor_fecha,
+                                            "descripcion": nc.mayor_descripcion,
+                                            "monto": nc.mayor_monto,
+                                        }
+                                        if nc.mayor_fecha is not None
+                                        else None
+                                    ),
+                                }
+                                for nc in no_conciliados
+                            ],
+                            "file_header_id": file_header.id,
                         }
                     )
                 except FileHeaders.DoesNotExist:
                     return JsonResponse(
                         {"error": "No file found for the given bank and period."}
                     )
-        elif action == 'historial':
+        elif action == "historial":
             filter_args = {}
             if bankName:
-                filter_args['bank_name'] = bankName
+                filter_args["bank_name"] = bankName
             if period:
-                filter_args['periodo'] = period
+                filter_args["periodo"] = period
             if monto:
-                filter_args['monto'] = monto
+                filter_args["monto"] = monto
             if filter_args:
                 file_headers = FileHeaders.objects.filter(**filter_args)
             else:
                 file_headers = FileHeaders.objects.all()
-            
-            
 
             if limit:
-                file_headers = file_headers[:int(limit)]
+                file_headers = file_headers[: int(limit)]
 
             response_data = []
             for file_header in file_headers:
                 no_conciliados = NoConciliado.objects.filter(file_header=file_header.id)
-                no_conciliados_json = serializers.serialize('json', no_conciliados)
-                response_data.append({
-                    'file_header': serializers.serialize('json', [file_header]),
-                    'no_conciliados': no_conciliados_json
-                })
+                no_conciliados_json = serializers.serialize("json", no_conciliados)
+                response_data.append(
+                    {
+                        "file_header": serializers.serialize("json", [file_header]),
+                        "file_id": file_header.id,
+                        "no_conciliados": no_conciliados_json,
+                    }
+                )
             return JsonResponse(response_data, safe=False)
+
+        elif action == "export":
+            if not file_header_id:
+                return JsonResponse(
+                    {"error": "file_header_id es requerido."}, status=400
+                )
+            file_header = FileHeaders.objects.get(id=file_header_id)
+            no_conciliados = NoConciliado.objects.filter(file_header=file_header.id)
+            wb = Workbook()
+            ws_extracto = wb.create_sheet("Extracto")
+            ws_mayor = wb.create_sheet("Mayor")
+            header_font = Font(bold=True)
+            center_alignment = Alignment(horizontal="center")
+            extracto_fill = PatternFill(
+                start_color="95B3D7", end_color="95B3D7", fill_type="solid"
+            )
+            mayor_fill = PatternFill(
+                start_color="C4D79B", end_color="C4D79B", fill_type="solid"
+            )
+            headers_extracto = ["Extracto Fecha", "Extracto Descripcion", "Extracto Monto"]
+            headers_mayor = ["Mayor Fecha", "Mayor Descripcion", "Mayor Monto"]
+            for i, header in enumerate(headers_extracto, start=1):
+                cell = ws_extracto.cell(row=1, column=i, value=header)
+                cell.font = header_font
+                cell.alignment = center_alignment
+                cell.fill = extracto_fill
+            for i, header in enumerate(headers_mayor, start=1):
+                cell = ws_mayor.cell(row=1, column=i, value=header)
+                cell.font = header_font
+                cell.alignment = center_alignment
+                cell.fill = mayor_fill
+            for i, no_conciliado in enumerate(no_conciliados, start=2):
+                ws_extracto.cell(row=i, column=1, value=no_conciliado.extracto_fecha)
+                ws_extracto.cell(row=i, column=2, value=no_conciliado.extracto_descripcion)
+                ws_extracto.cell(row=i, column=3, value=no_conciliado.extracto_monto)
+                ws_mayor.cell(row=i-1, column=1, value=no_conciliado.mayor_fecha)
+                ws_mayor.cell(row=i-1, column=2, value=no_conciliado.mayor_descripcion)
+                ws_mayor.cell(row=i-1, column=3, value=no_conciliado.mayor_monto)
+            wb.remove(wb["Sheet"])
+            for sheet in wb.sheetnames:
+                for column in wb[sheet].columns:
+                    max_length = 0
+                    column = [cell for cell in column]
+                    for cell in column:
+                        try:
+                            if len(str(cell.value)) > max_length:
+                                max_length = len(cell.value)
+                        except:
+                            pass
+                    adjusted_width = max_length + 2
+                    wb[sheet].column_dimensions[
+                        column[0].column_letter
+                    ].width = adjusted_width
+            response = HttpResponse(
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            response["Content-Disposition"] = "attachment; filename=NoConciliados.xlsx"
+            wb.save(response)
+            return response
 
         else:
             return JsonResponse({"error": "Invalid action."})
@@ -400,8 +469,7 @@ def DownloadPlantilla(request):
         ws_extracto.column_dimensions[get_column_letter(1)].width = 30
         ws_extracto.column_dimensions[get_column_letter(2)].width = 30
 
-
-        #MAYOR
+        # MAYOR
         ws_mayor = wb.create_sheet("MAYOR")
         ws_mayor["A1"] = bankName
         ws_mayor["A1"].font = Font(name="Calibri", size=20, bold=True)
@@ -433,7 +501,6 @@ def DownloadPlantilla(request):
         # ajusta size A1 B1
         ws_mayor.column_dimensions[get_column_letter(1)].width = 30
         ws_mayor.column_dimensions[get_column_letter(2)].width = 30
-        
 
         # BytesIO guarda el objeto en memoria y no en el disco. se limpia al terminar la funcion
         output = BytesIO()
@@ -444,7 +511,9 @@ def DownloadPlantilla(request):
             output.getvalue(),
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-        response["Content-Disposition"] = f"attachment; filename=Conciliaciones {bankName}.xlsx"
+        response["Content-Disposition"] = (
+            f"attachment; filename=Conciliaciones {bankName}.xlsx"
+        )
         return response
     except Exception as e:
         logger.error(str(e))

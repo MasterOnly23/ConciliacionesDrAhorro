@@ -172,7 +172,7 @@ class ConciliacionesView(View):
             try:
                 for e in extractos:
                     conciliado = False
-                    if e.codigo != '6666' or e.codigo != '1111':
+                    if e.codigo != '6666' and e.codigo != '1111':
                         for m in mayor:
                             if (
                                 # e.fecha == m.fecha
@@ -192,29 +192,69 @@ class ConciliacionesView(View):
                                 extracto_fecha=e.fecha,
                                 extracto_descripcion=e.descripcion,
                                 extracto_monto=e.monto,
+                                extracto_codigo=e.codigo,
                             )
                             no_conciliados.append(no_conciliado)
 
                 conciliado_6666 = False
                 conciliado_1111 = False
                 for m in mayor:
-                    if m.codigo == '6666' and sum_extractos_6666 == m.monto:
-                        Conciliacion.objects.create(
-                            file_header=file_header,
-                            extracto=extractos_6666[0],
-                            mayor=m,
-                        )
-                        conciliado_6666 = True
-                        break
+                    if m.codigo == '6666':
+                        if sum_extractos_6666 == m.monto:
+                            Conciliacion.objects.create(
+                                file_header=file_header,
+                                extracto=extractos_6666[0],
+                                mayor=m,
+                            )
+                            conciliado_6666 = True
+                            # break
+                        else:
+                            no_conciliado = NoConciliado.objects.create(
+                                file_header=file_header,
+                                mayor_fecha=m.fecha,
+                                mayor_descripcion=m.descripcion,
+                                mayor_monto=m.monto,
+                                mayor_codigo=m.codigo,
+                            )
+                            no_conciliados.append(no_conciliado)
+                    #     break
+                    # if not conciliado_6666:
+                    #     no_conciliado = NoConciliado.objects.create(
+                    #         file_header=file_header,
+                    #         extracto_fecha=extractos_6666[0].fecha,
+                    #         extracto_descripcion='Gastos Bancarios',
+                    #         extracto_monto=sum_extractos_6666,
+                    #         extracto_codigo='6666',
+                    #     )
+                    #     no_conciliados.append(no_conciliado)
                     
-                    if m.codigo == '1111' and sum_extractos_1111 == m.monto:
-                        Conciliacion.objects.create(
-                            file_header=file_header,
-                            extracto=extractos_1111[0],
-                            mayor=m,
-                        )
-                        conciliado_1111 = True
-                        break
+                    elif m.codigo == '1111':
+                        if sum_extractos_1111 == m.monto:
+                            Conciliacion.objects.create(
+                                file_header=file_header,
+                                extracto=extractos_1111[0],
+                                mayor=m,
+                            )
+                            conciliado_1111 = True
+                            # break
+                        else:
+                            no_conciliado = NoConciliado.objects.create(
+                                file_header=file_header,
+                                mayor_fecha=m.fecha,
+                                mayor_descripcion=m.descripcion,
+                                mayor_monto=m.monto,
+                                mayor_codigo=m.codigo,
+                            )
+                            no_conciliados.append(no_conciliado)
+                    # else:
+                    #     no_conciliado = NoConciliado.objects.create(
+                    #         file_header=file_header,
+                    #         mayor_fecha=m.fecha,
+                    #         mayor_descripcion=m.descripcion,
+                    #         mayor_monto=m.monto,
+                    #         mayor_codigo=m.codigo,
+                    #     )
+                    #     no_conciliados.append(no_conciliado)
 
                 if not conciliado_6666 and extractos_6666:
                     no_conciliado = NoConciliado.objects.create(
@@ -222,6 +262,7 @@ class ConciliacionesView(View):
                         extracto_fecha=extractos_6666[0].fecha,
                         extracto_descripcion='Gastos Bancarios',
                         extracto_monto=sum_extractos_6666,
+                        extracto_codigo='6666',
                     )
                     no_conciliados.append(no_conciliado)
                     
@@ -232,6 +273,7 @@ class ConciliacionesView(View):
                         extracto_fecha=extractos_1111[0].fecha,
                         extracto_descripcion='Valores depositados en efectivo',
                         extracto_monto=sum_extractos_1111,
+                        extracto_codigo='1111',
                     )
                     no_conciliados.append(no_conciliado)
 
@@ -243,27 +285,33 @@ class ConciliacionesView(View):
             try:
                 for m in mayor:
                     conciliado = False
-                    for e in extractos:
-                        if (
-                            m.fecha == e.fecha
-                            and m.codigo == e.codigo
-                            and m.monto == e.monto
-                        ):
-                            Conciliacion.objects.create(
+                    if m.codigo != '6666' and m.codigo != '1111':
+                        for e in extractos:
+                            if (
+                                # m.fecha == e.fecha
+                                m.codigo == e.codigo
+                                and m.monto == e.monto
+                            ):
+                                Conciliacion.objects.create(
+                                    file_header=file_header,
+                                    extracto=e,
+                                    mayor=m,
+                                )
+                                conciliado = True
+                                break
+                        if not conciliado:
+                            no_conciliado, created = NoConciliado.objects.get_or_create(
                                 file_header=file_header,
-                                extracto=e,
-                                mayor=m,
+                                mayor_fecha=m.fecha,
+                                mayor_descripcion=m.descripcion,
+                                mayor_monto=m.monto,
+                                mayor_codigo=m.codigo,
                             )
-                            conciliado = True
-                            break
-                    if not conciliado:
-                        no_conciliado = NoConciliado.objects.create(
-                            file_header=file_header,
-                            mayor_fecha=m.fecha,
-                            mayor_descripcion=m.descripcion,
-                            mayor_monto=m.monto,
-                        )
-                        no_conciliados.append(no_conciliado)
+                            if created:
+                                no_conciliados.append(no_conciliado)
+                
+
+                    
             except ValidationError as e:
                 print(e)
                 logger.error(str(e))
@@ -362,6 +410,7 @@ class ConciliacionesView(View):
                                             "fecha": nc.extracto_fecha,
                                             "descripcion": nc.extracto_descripcion,
                                             "monto": nc.extracto_monto,
+                                            "codigo": nc.extracto_codigo,
                                         }
                                         if nc.extracto_fecha is not None
                                         else None
@@ -371,6 +420,7 @@ class ConciliacionesView(View):
                                             "fecha": nc.mayor_fecha,
                                             "descripcion": nc.mayor_descripcion,
                                             "monto": nc.mayor_monto,
+                                            "codigo": nc.mayor_codigo,
                                         }
                                         if nc.mayor_fecha is not None
                                         else None

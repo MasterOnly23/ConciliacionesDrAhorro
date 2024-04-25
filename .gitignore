@@ -4,3 +4,4 @@ migrations/
 .env
 Archivos\ a\ Conciliar/
 **/logs/
+web.config

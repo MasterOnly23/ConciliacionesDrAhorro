@@ -161,30 +161,80 @@ class ConciliacionesView(View):
             no_conciliados = []
             # file_header = FileHeaders.objects.filter(bank_name=bank_name, periodo=self.period).last()
 
+            # Sumatoria 6666
+            extractos_6666 = [e for e in extractos if e.codigo == '6666']
+            sum_extractos_6666 = sum(e.monto for e in extractos_6666)
+
+            #Sumatoria 1111
+            extractos_1111 = [e for e in extractos if e.codigo == '1111']
+            sum_extractos_1111 = sum(e.monto for e in extractos_1111)
+
             try:
                 for e in extractos:
                     conciliado = False
-                    for m in mayor:
-                        if (
-                            e.fecha == m.fecha
-                            and e.codigo == m.codigo
-                            and e.monto == m.monto
-                        ):
-                            Conciliacion.objects.create(
+                    if e.codigo != '6666' or e.codigo != '1111':
+                        for m in mayor:
+                            if (
+                                # e.fecha == m.fecha
+                                e.codigo == m.codigo
+                                and e.monto == m.monto
+                            ):
+                                Conciliacion.objects.create(
+                                    file_header=file_header,
+                                    extracto=e,
+                                    mayor=m,
+                                )
+                                conciliado = True
+                                break
+                        if not conciliado:
+                            no_conciliado = NoConciliado.objects.create(
                                 file_header=file_header,
-                                extracto=e,
-                                mayor=m,
+                                extracto_fecha=e.fecha,
+                                extracto_descripcion=e.descripcion,
+                                extracto_monto=e.monto,
                             )
-                            conciliado = True
-                            break
-                    if not conciliado:
-                        no_conciliado = NoConciliado.objects.create(
+                            no_conciliados.append(no_conciliado)
+
+                conciliado_6666 = False
+                conciliado_1111 = False
+                for m in mayor:
+                    if m.codigo == '6666' and sum_extractos_6666 == m.monto:
+                        Conciliacion.objects.create(
                             file_header=file_header,
-                            extracto_fecha=e.fecha,
-                            extracto_descripcion=e.descripcion,
-                            extracto_monto=e.monto,
+                            extracto=extractos_6666[0],
+                            mayor=m,
                         )
-                        no_conciliados.append(no_conciliado)
+                        conciliado_6666 = True
+                        break
+                    
+                    if m.codigo == '1111' and sum_extractos_1111 == m.monto:
+                        Conciliacion.objects.create(
+                            file_header=file_header,
+                            extracto=extractos_1111[0],
+                            mayor=m,
+                        )
+                        conciliado_1111 = True
+                        break
+
+                if not conciliado_6666 and extractos_6666:
+                    no_conciliado = NoConciliado.objects.create(
+                        file_header=file_header,
+                        extracto_fecha=extractos_6666[0].fecha,
+                        extracto_descripcion='Gastos Bancarios',
+                        extracto_monto=sum_extractos_6666,
+                    )
+                    no_conciliados.append(no_conciliado)
+                    
+                
+                if not conciliado_1111 and extractos_1111:
+                    no_conciliado = NoConciliado.objects.create(
+                        file_header=file_header,
+                        extracto_fecha=extractos_1111[0].fecha,
+                        extracto_descripcion='Valores depositados en efectivo',
+                        extracto_monto=sum_extractos_1111,
+                    )
+                    no_conciliados.append(no_conciliado)
+
             except ValidationError as e:
                 print(e)
                 logger.error(str(e))

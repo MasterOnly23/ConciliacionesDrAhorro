@@ -80,6 +80,8 @@ class NoConciliado(models.Model):
     extracto_fecha = models.DateField(null=True, blank=True)
     extracto_descripcion = models.CharField(max_length=255)
     extracto_monto = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    extracto_codigo = models.CharField(max_length=6)
     mayor_fecha = models.DateField(null=True, blank=True)
     mayor_descripcion = models.CharField(max_length=255)
     mayor_monto = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    mayor_codigo = models.CharField(max_length=6)

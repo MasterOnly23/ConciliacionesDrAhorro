@@ -106,7 +106,7 @@ class ConciliacionesView(View):
             return JsonResponse({"error": str(e)})
 
     def create_extractos(self, data_extractos, file_header):
-        data_table_estractos = data_extractos.iloc[4:, :5]  # leemos la tabla
+        data_table_estractos = data_extractos.iloc[3:, :5]  # leemos la tabla
         extractos_data = []
         for index, row in data_table_estractos.iterrows():
             try:
@@ -131,7 +131,7 @@ class ConciliacionesView(View):
         Extractos.objects.bulk_create(extractos_data)
 
     def create_mayor(self, data_mayor, file_header):
-        data_table_mayor = data_mayor.iloc[4:, :4]
+        data_table_mayor = data_mayor.iloc[3:, :6]
         mayor_data = []
         for index, row in data_table_mayor.iterrows():
             try:

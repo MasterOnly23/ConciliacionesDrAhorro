@@ -482,8 +482,8 @@ class ConciliacionesView(View):
             mayor_fill = PatternFill(
                 start_color="C4D79B", end_color="C4D79B", fill_type="solid"
             )
-            headers_extracto = ["Extracto Fecha", "Extracto Descripcion", "Extracto Monto"]
-            headers_mayor = ["Mayor Fecha", "Mayor Descripcion", "Mayor Monto"]
+            headers_extracto = ["Extracto Fecha", "Extracto Descripcion", "Extracto Monto", "Extracto Codigo"]
+            headers_mayor = ["Mayor Fecha", "Mayor Descripcion", "Mayor Monto", "Mayor Codigo"]
             for i, header in enumerate(headers_extracto, start=1):
                 cell = ws_extracto.cell(row=1, column=i, value=header)
                 cell.font = header_font
@@ -498,10 +498,13 @@ class ConciliacionesView(View):
                 ws_extracto.cell(row=i, column=1, value=no_conciliado.extracto_fecha)
                 ws_extracto.cell(row=i, column=2, value=no_conciliado.extracto_descripcion)
                 ws_extracto.cell(row=i, column=3, value=no_conciliado.extracto_monto)
+                ws_extracto.cell(row=i, column=4, value=no_conciliado.extracto_codigo)
                 ws_mayor.cell(row=i-1, column=1, value=no_conciliado.mayor_fecha)
                 ws_mayor.cell(row=i-1, column=2, value=no_conciliado.mayor_descripcion)
                 ws_mayor.cell(row=i-1, column=3, value=no_conciliado.mayor_monto)
+                ws_mayor.cell(row=i-1, column=4, value=no_conciliado.mayor_codigo)
             wb.remove(wb["Sheet"])
+
             for sheet in wb.sheetnames:
                 for column in wb[sheet].columns:
                     max_length = 0
@@ -512,10 +515,11 @@ class ConciliacionesView(View):
                                 max_length = len(cell.value)
                         except:
                             pass
-                    adjusted_width = max_length + 2
+                    adjusted_width = (max_length + 2) * 1.2  # Ajuste para la medida de Excel
                     wb[sheet].column_dimensions[
                         column[0].column_letter
                     ].width = adjusted_width
+
             response = HttpResponse(
                 content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )

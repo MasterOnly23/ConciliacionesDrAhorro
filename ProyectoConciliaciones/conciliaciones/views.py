@@ -499,10 +499,10 @@ class ConciliacionesView(View):
                 ws_extracto.cell(row=i, column=2, value=no_conciliado.extracto_descripcion)
                 ws_extracto.cell(row=i, column=3, value=no_conciliado.extracto_monto)
                 ws_extracto.cell(row=i, column=4, value=no_conciliado.extracto_codigo)
-                ws_mayor.cell(row=i-1, column=1, value=no_conciliado.mayor_fecha)
-                ws_mayor.cell(row=i-1, column=2, value=no_conciliado.mayor_descripcion)
-                ws_mayor.cell(row=i-1, column=3, value=no_conciliado.mayor_monto)
-                ws_mayor.cell(row=i-1, column=4, value=no_conciliado.mayor_codigo)
+                ws_mayor.cell(row=i, column=1, value=no_conciliado.mayor_fecha)
+                ws_mayor.cell(row=i, column=2, value=no_conciliado.mayor_descripcion)
+                ws_mayor.cell(row=i, column=3, value=no_conciliado.mayor_monto)
+                ws_mayor.cell(row=i, column=4, value=no_conciliado.mayor_codigo)
             wb.remove(wb["Sheet"])
 
             for sheet in wb.sheetnames:
